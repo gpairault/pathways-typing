@@ -125,7 +125,7 @@ xlevel_df <- lapply(names(xlevels), function(var) {
 join_levels <- left_join(flagged_c_split, xlevel_df, by = "var") %>%
   rename(parent_node = node) %>%
   # WHEN a level is missing at a node then both child are dead-ends 
-  mutate(child_nodes = list(get_child_node(as.numeric(parent_node)))) 
+  mutate(child_nodes = list(get_child_nodes(as.numeric(parent_node)))) 
 
 # Determine which levels were not present (coded as '2')
 final_output <- join_levels %>%
