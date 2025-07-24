@@ -2,6 +2,19 @@
 
 # Detecting Logical dead-ends using the C-Split method
 
+# What is a logical dead-end ? 
+
+# It happens as we are deploying CART models trained on survey data to real world scenarios 
+
+# The CART models learn decision rules based on the specific patterns that existed in the training data (e.g., DHS).
+# But certain combinations of scenarios 
+# - usually rare but can still exist in real life 
+# - may not exist in the survey data. 
+# 
+# For these scenarios, the CART tree never learned what to do with it, 
+# since it only learned how to split based on the data combinations present during training (DHS).
+
+
 # The c-split object in rpart provides information for every categorical split in rpart
 # For each split, the object stores what happens at the split to each level of the categorical variable
 # The 3 values are: 1 - the level goes to the left in the split; 
@@ -23,7 +36,7 @@ source("extra_rpart_functions.R")
 #PART 1: Extracting the required objects from rpart
 
 # Any RDS file containing the rpart object can be used as input here 
-tree <- readRDS('data/output/tree_rural_pruned.rds') 
+tree <- readRDS('data/tree_rural_pruned.rds') 
 
 xlevels <- attr(tree, "xlevels")
 
@@ -148,8 +161,9 @@ final_output %>% View()
 # PART 4 : Exclude nodes where the level isn't expected to be present
 
 # This situation occur when a variable is repeated twice in a path
-# At the first occurrence, some level(s) of the variable will be excluded from one path
+# At the first occurrence, some level(s) of the variable will be excluded from one path based on the split at the node
 # At the second occurrence, csplit doesn't have this information and still flag the level as missing
 
 # TBC
+
 

@@ -1,7 +1,7 @@
 ################################################################################
 
 # This file contains all additional functions that are
-# required to extract information from a tree
+# required to extract information from a CART model
 
 ################################################################################
 

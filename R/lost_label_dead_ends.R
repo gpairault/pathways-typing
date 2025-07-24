@@ -2,6 +2,17 @@
 
 # Detecting logical dead-ends where a level is lost when a variable appears twice in a tree
 
+# It happens as we are deploying CART models trained on survey data to real world scenarios 
+
+# The CART models learn decision rules based on the specific patterns that existed in the training data (e.g., DHS).
+# But certain combinations of scenarios 
+# - usually rare but can still exist in real life 
+# - may not exist in the survey data. 
+# 
+# For these scenarios, the CART tree never learned what to do with it, 
+# since it only learned how to split based on the data combinations present during training (DHS).
+
+
 # There are two main steps here:
 #      1. Detect nodes where a level as disappeared when the node is repeated in the path
 #      2. Check that the missing level isn't present in the sibling node
@@ -18,8 +29,9 @@ library(rpart)
 source("extra_rpart_functions.R")
 
 # LOAD RPART TREE FROM SEGMENTATION OUTPUT
+# Rural tree from North Nigeria - DHS7 2016 is used in this example 
 
-tree <- readRDS('data/output/tree_rural_pruned.rds')
+tree <- readRDS('data/tree_rural_pruned.rds')
 frame <- tree$frame
 leaf_nodes <- as.numeric(row.names(frame[frame$var == "<leaf>", ]))
 paths_list <- path.rpart(tree, nodes = leaf_nodes, print.it = FALSE)
@@ -113,7 +125,7 @@ identify_dead_ends <- function(df_lost_label, frame_tree) {
       # Obtain node number where the level disappeared
       var_node_number <- path_node_list[var_position_path]
       
-      sibling_node <- find_valid_sibling_node(as.numeric(var_node_number), frame_tree)
+      sibling_node <- get_valid_sibling_node(as.numeric(var_node_number), frame_tree)
       sibling_var <- tail(get_path_variables(sibling_node), n = 1)
       sibling_path_lvl <- get_path_levels(sibling_node)
       sibling_node_level <- sibling_path_lvl[var_position_path - 1] #adjust for root
