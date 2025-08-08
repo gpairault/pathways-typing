@@ -8,13 +8,23 @@
 #find node number of sibling and check that the sibling exist in the tree
 get_valid_sibling_node <- function(node_number, frame) {
   possible_parents <- as.numeric(row.names(frame))
-  parent <- floor(node_number / 2)
+  parent <- floor(as.numeric(node_number) / 2)
   if (!all(parent %in% possible_parents)) return(NA)
   
   if (node_number %% 2 == 0) {
     return(parent * 2 + 1)  # sibling is right
   } else {
     return(parent * 2)      # sibling is left
+  }
+}
+
+get_sibling_node <- function(node_number) {
+  node_number <- as.numeric(node_number)
+  parent <- floor(node_number / 2)
+  if (node_number %% 2 == 0) {
+    return(parent * 2 + 1)  # right sibling
+  } else {
+    return(parent * 2)      # left sibling
   }
 }
 

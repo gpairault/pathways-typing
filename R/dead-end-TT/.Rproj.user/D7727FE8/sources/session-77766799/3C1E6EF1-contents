@@ -1,0 +1,35 @@
+library(dplyr)
+
+
+# load data
+df <- read.csv("Senegal_2019DHS8_1.2.csv")
+
+# DATA FIXES
+
+# hb.1 was coded inversely and needed to be fixed
+df <- df %>%
+  mutate(your_column = if_else(hb.1 == 1, 0,
+                               if_else(hb.1 == 0, 1, hb.1)))
+
+# dpt.full was coded inversely and needed to be fixed
+df <- df %>%
+  mutate(dpt.full.yn = if_else(dpt.full.yn == 1, 0,
+                               if_else(dpt.full.yn == 0, 1, dpt.full.yn)))
+
+
+# DATA REMOVAL
+
+# The data had coding errors in vulnerabilities
+
+df <- df %>%
+  select(-hh.noimp.water, -med.cost.dist.moh, -discharge.checkedhealth.moh.cat, -hh.bourse,
+         -hh.mobile, -desc.money, -ideal.n.child.moh.cat)
+
+
+
+# SAVE UNDER NEW VERSION
+
+
+write.csv(df , "Senegal_2019DHS8_1.3.csv")
+
+

@@ -164,6 +164,71 @@ final_output %>% View()
 # At the first occurrence, some level(s) of the variable will be excluded from one path based on the split at the node
 # At the second occurrence, csplit doesn't have this information and still flag the level as missing
 
+
 # TBC
 
+# for row in dataframe
+#   pull first value in child nodes and vaariable
+#   if variable appears twice in path
+#       store position of var in path
+#       get node number and find sibling number
+#       if sibling level is in missing levels
+#           remove from list
+#   if missing level is empty then remove row
+      
 
+# Helper function to normalize spacing around commas and trim whitespace
+normalize_level <- function(x) {
+  gsub("\\s*,\\s*", ",", trimws(x))
+}
+
+
+output_level_df <- data.frame()
+
+for (i in seq_len(nrow(final_output))) {
+  row <- final_output[i, ]
+  var <- row$variable
+  parent_node <- row$parent_node
+  child_nodes <- row$child_nodes
+  missing_level <- row$not_present_levels
+  
+  # Split and trim levels
+  missing_level_list <- trimws(strsplit(missing_level, ",", fixed = TRUE)[[1]])
+  
+  first_child <- child_nodes[[1]][1]
+  child_path_var <- get_path_variables(first_child)
+  
+  if (sum(child_path_var == var, na.rm = TRUE) > 1) {
+    var_first_position <- which(child_path_var == var)[1]
+    var_first_node <- get_path_nodes(first_child)[var_first_position + 1]
+    var_first_sibling <- get_sibling_node(var_first_node)
+    
+    var_first_sibling_level <- trimws(strsplit(
+      tail(get_path_levels(var_first_sibling), 1), ","
+    )[[1]])
+    
+    # Filter out any missing levels that are found in the sibling
+    for (missing in missing_level_list) {
+      if (missing %in% var_first_sibling_level) {
+        
+        missing_level_list <- setdiff(missing_level_list, missing)
+      }
+    }
+  }
+  
+  # Save the result for this row, including parent and child info
+  output_level_df <- rbind(
+    output_level_df,
+    data.frame(
+      row_index = i,
+      variable = var,
+      parent_node = parent_node,
+      first_child = first_child,
+      second_child = get_sibling_node(first_child),
+      missing_levels = paste(missing_level_list, collapse = ",")
+    )
+  )
+}
+
+output_level_df <- output_level_df %>%
+  filter(missing_levels != "")

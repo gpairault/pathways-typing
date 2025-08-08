@@ -1,0 +1,109 @@
+library(tidyverse)
+
+
+# OUTCOME
+
+# Loading dictionary and variables linked with skip pattern
+
+senegal_dict <- read_excel('segmentation_data/Senegal_2019DHS8_1.0_dictionary.xlsx')
+
+outcome_skip_dict <- senegal_dict %>%
+  dplyr::filter(metric_type == "outcome",
+                denominator_notes != "Women age 15-49 with at least one birth")
+
+
+  
+# ENSURING ALL VARIABLES ARE ENCODED
+
+# Rename some variable to match metrics from dictionary
+outcomes_skip <- outcomes %>%
+  rename(anc.less4 = anc.less4.last,
+         hb.1 = home.birth.last,
+         no.breastfed = no.breastfeed.last) #not an approximation | error in encoding
+         #breastfeed.cnt using no.breastfeed.cnt
+         #breastfeed.yn using no.breastfeed)
+
+outcomes %>%
+  summarise(n = n(), .by = no.breastfeed.cnt)
+
+# use m4 or M4_1
+
+outcomes$m4
+# V218 - Number of living children
+# Find number of children udner 1 year ?
+
+# children.alive_df <- vulnerability %>% dplyr::select(caseid, v218) %>% rename(children.alive = v218)
+# outcomes_skip <- left_join(outcomes_skip, children.alive_df, by = "caseid") %>%
+# mutate(breastfeed.cnt = chil)
+
+# ℹ Row 19 of `x` matches multiple rows in `y`.
+# ℹ Row 2698 of `y` matches multiple rows in `x`.
+
+# need to find  number of children 
+
+# SUBSET OUTCOME WITH VARIABLE LINKED WITH SP (COLUMNS)
+
+valid_metrics <- outcome_skip_dict$metric_id[outcome_skip_dict$metric_id %in% colnames(outcomes_skip)]
+outcomes_skip <- outcomes_skip %>% dplyr::select(all_of(valid_metrics))
+
+# Identify metrics that are not in outcomes
+missing_metrics <- outcome_skip_dict$metric_id[!outcome_skip_dict$metric_id %in% colnames(outcomes_skip)]
+
+
+
+# SUBSET OUTCOME WITH RESPONDENT LINKED WITH SP (ROWS)
+# -> All patients who do not match with denominator
+
+senegal_dict %>%
+  summarise(n = n(), .by = denominator_notes) %>%
+  print(n = 24)
+
+outcomes_skip$
+# Variables that are necessary for different denominator
+# >1 birth in last 5 years
+vulnerability$v208
+
+# >1 live birth in last 3 years
+vulnerability$v238
+# menstrual period in the last year
+vulnerability$v215
+# in a polygamous union
+vulnerability$v505
+# most recent child is < 24 months
+vulnerability$b19 #_XX: need to check last non NA
+
+# >1 live birth in last 5 years
+
+# >1 children currentyly employed / occupation
+
+vulnerability$v717
+vulnerability$v731
+
+# >1 children heard of FGM
+vulnerability$g118
+# live with toilet in houshold
+vulnerability$hv205
+# sex in last 12 months
+vulnerability$v527
+# partner completed survey
+#?
+# >1 children under 3
+#B19_XX < 36
+# >1 children under 2 
+# B19_XX < 24
+# not using method of contraception
+vulnerability$v313
+
+#groupby   caseid
+
+
+# Check that missigness is complete
+
+# Mutate dataframe with 'SP'
+
+
+# Vulnerability
+
+vulnerability_skip__dict <- senegal_dict %>%
+  dplyr::filter(metric_type == "vulnerability",
+                denominator_notes != "Women age 15-49 with at least one birth")

@@ -1,0 +1,176 @@
+install.packages("pacman")
+pacman::p_load(rpart, rpart.plot, caret, rattle, foreign, ggplot2, dplyr, tidyr, data.table, haven, ggcorrplot, stringr, jsonlite, arrow)
+
+# Set parameters
+
+params_sheet <- readRDS("data/input/1_params_excel.rds")
+
+final_models <- params_sheet %>%
+  dplyr::select(strata, final_model) %>%
+  dplyr::filter(!is.na(strata))
+
+strata_set <- unique(final_models$strata)
+
+urban_seg <- final_models %>% dplyr::filter(strata == "urban") %>% pull(final_model)
+rural_seg <- final_models %>% dplyr::filter(strata == "rural") %>% pull(final_model)
+
+set.seed(99)
+
+# Data input 
+
+vulnerability_vars <- readRDS("data/input/1_vulnerability_excel.rds")
+
+vulnerability_vars_tt <- vulnerability_vars %>%
+  dplyr::filter(typing_tool_include == 1)
+
+
+path = paste0("data/input/urban_outcomes_vulnerability_class_ranked.rds")
+urban_sol <- readRDS(path)
+
+
+path = paste0("data/input/rural_outcomes_vulnerability_class_ranked.rds")
+rural_sol <- readRDS(path)
+
+# Urban
+stratum = "urban"
+
+urban_sol$n_class <- urban_sol %>% pull(eval(parse(text=urban_seg)))
+
+urban_tt_vars <- vulnerability_vars_tt %>%
+  dplyr::filter(typing_tool_strata %in% c("both", "all", stratum)) %>%
+  dplyr::select(vulnerability_variable) %>%
+  setNames(c("variable"))
+
+tt_input_names <- names(urban_sol)[(names(urban_sol) %in% unique(c("n_class", urban_tt_vars$variable)))]
+urban_input <- subset(urban_sol, select=c(tt_input_names))
+
+# Data prep
+for (col in names(urban_input)){
+  
+  if ((all(c(0, 1) %in% na.omit(urban_input[[col]])) == TRUE) & (all(na.omit(urban_input[[col]]) %in% c(0, 1)) == TRUE) |
+      (all(c("Yes", "No") %in% str_to_title(na.omit(urban_input[[col]]))) == TRUE) & (all(str_to_title(na.omit(urban_input[[col]])) %in% c("Yes", "No")) == TRUE)){
+    
+    print(col)
+    urban_input[[col]] <- ifelse(urban_input[[col]] == 1, "Yes", urban_input[[col]])
+    urban_input[[col]] <- ifelse(urban_input[[col]] == 0, "No", urban_input[[col]])
+    urban_input[[col]] <- ifelse(urban_input[[col]] == "yes", "Yes", urban_input[[col]])
+    urban_input[[col]] <- ifelse(urban_input[[col]] == "no", "No", urban_input[[col]])
+  }
+}
+
+urban_input <- urban_input %>%
+  dplyr::mutate(has.bank = case_when(has.bank == 1 ~ "No",
+                                     has.bank == 2 ~ "Yes"))
+tree_urban <- rpart(n_class ~ .,
+                    data=urban_input,
+                    control=rpart.control(cp=0.0001, xval=5), method="class")
+confusion.matrix = confusionMatrix(data = predict(tree_urban,
+                                                  data=urban_input,
+                                                  type="class"),
+                                   as.factor(urban_input$n_class))
+print(confusion.matrix)
+rpart.plot(tree_urban, type = 0, fallen.leaves = F, varlen = -15, tweak = 2, extra = 0, clip.facs = F, legend.x = NA)
+
+# Rural
+
+stratum = "rural"
+
+rural_sol$n_class <- rural_sol %>% pull(eval(parse(text=rural_seg)))
+
+rural_tt_vars <- vulnerability_vars_tt %>%
+  dplyr::filter(typing_tool_strata %in% c("both", "all", stratum)) %>%
+  dplyr::select(vulnerability_variable) %>%
+  setNames(c("variable"))
+
+
+tt_input_names <- names(rural_sol)[(names(rural_sol) %in% c("n_class", rural_tt_vars$variable))]
+rural_input <- subset(rural_sol, select=c(tt_input_names))
+
+for (col in names(rural_input)){
+  
+  if ((all(c(0, 1) %in% na.omit(rural_input[[col]])) == TRUE) & (all(na.omit(rural_input[[col]]) %in% c(0, 1)) == TRUE) |
+      (all(c("Yes", "No") %in% str_to_title(na.omit(rural_input[[col]]))) == TRUE) & (all(str_to_title(na.omit(rural_input[[col]])) %in% c("Yes", "No")) == TRUE)){
+    
+    print(col)
+    rural_input[[col]] <- ifelse(rural_input[[col]] == 1, "Yes", rural_input[[col]])
+    rural_input[[col]] <- ifelse(rural_input[[col]] == 0, "No", rural_input[[col]])
+    rural_input[[col]] <- ifelse(rural_input[[col]] == "yes", "Yes", rural_input[[col]])
+    rural_input[[col]] <- ifelse(rural_input[[col]] == "no", "No", rural_input[[col]])
+  }
+}
+
+rural_input <- rural_input %>%
+  dplyr::mutate(has.bank = case_when(has.bank == 1 ~ "No",
+                                     has.bank == 2 ~ "Yes"))
+tree_rural <- rpart(n_class ~ .,
+                    data=rural_input, control=rpart.control(cp=0.0001, xval=5), method="class", model = TRUE)
+confusion.matrix = confusionMatrix(data = predict(tree_rural,
+                                                  data=rural_input,
+                                                  type="class"),
+                                   as.factor(rural_input$n_class))
+print(confusion.matrix)
+rpart.plot(tree_rural, type = 0, fallen.leaves = F, varlen = -15, tweak = 2, extra = 0, clip.facs = F, legend.x = NA)
+
+# Output
+to_json <- function(tree, fp) {
+  
+  # Convert rownames to columns as they contain important information: binary
+  # node index for tree$frame and split variable for tree$splits
+  #   - tree: rpart object
+  #   - fp: file path to write JSON to
+  
+  frame <- tibble::rownames_to_column(tree$frame, var = "node")
+  frame <- tibble::as_tibble(frame)
+  
+  splits <- tibble::as_tibble(tree$splits)
+  
+  # Add a "type" column to tree$splits to distringuish between main, primary and
+  # surrogate splits
+  n <- nrow(splits)
+  nn <- frame$ncompete + frame$nsurrogate + !(frame$var == "<leaf>")
+  ix <- cumsum(c(1L, nn))
+  ix_prim <- unlist(
+    mapply(ix, ix + c(frame$ncompete, 0), FUN = seq, SIMPLIFY = FALSE)
+  )
+  split_type <- rep.int("surrogate", n)
+  split_type[ix_prim[ix_prim <= n]] <- "primary"
+  split_type[ix[ix <= n]] <- "main"
+  splits <- dplyr::mutate(splits, type = split_type)
+  
+  # Get "ncat" and "index" columns from tree$frame as they contain important
+  # information: "ncat" provides info on split operator sign ("<" or ">") and
+  # "index" is the corresponding row index in the "csplit" matrix.
+  #
+  # tree$frame and tree$splits are identically ordered - so as long as we only
+  # consider main splits (excluding surrogate and primary) and skip leaves in
+  # tree$frame, columns can be copied as they are.
+  main_splits <- dplyr::filter(splits, type == "main")
+  not_leaf <- frame$var != "<leaf>"
+  ncat <- rep.int(0, nrow(frame))
+  ncat[not_leaf] <- main_splits$ncat
+  index <- rep.int(0, nrow(frame))
+  index[not_leaf] <- main_splits$index
+  frame <- dplyr::mutate(frame, ncat = ncat, index = index)
+  
+  frame <- dplyr::select(
+    frame, "node", "var", "n", "yval", "ncat", "index", "yval2"
+  )
+  
+  write_json(
+    list(
+      nodes = frame,
+      ylevels = attr(tree, "ylevels"),
+      xlevels = attr(tree, "xlevels"),
+      csplit = tree$csplit
+    ),
+    fp
+  )
+}
+saveRDS(tree_rural, "data/output/tree_rural_pruned.rds")
+saveRDS(tree_urban, "data/output/tree_urban_pruned.rds")
+
+to_json(tree_rural, "data/output/cart_rural.json")
+to_json(tree_urban, "data/output/cart_urban.json")
+
+seg <- dplyr::bind_rows(rural_input, urban_input)
+write_parquet(seg, "data/output/Nigeria_Northern_2018DHS7_1.0_cart_S1.0.parquet")

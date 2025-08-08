@@ -1,0 +1,26 @@
+{
+    "id": "AF9F0287",
+    "path": "~/Pathways/dead-end-TT/extra_rpart_functions.R",
+    "project_path": "extra_rpart_functions.R",
+    "type": "r_source",
+    "hash": "137782978",
+    "contents": "",
+    "dirty": false,
+    "created": 1753344521407.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "26,42",
+        "scrollLine": "0"
+    },
+    "folds": "8|56|18|0|\n20|43|28|0|\n31|39|39|0|\n42|43|59|0|\n62|40|78|0|\n81|35|83|0|\n",
+    "lastKnownWriteTime": 1754063090,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1754063099100,
+    "read_only": false,
+    "read_only_alternatives": []
+}
